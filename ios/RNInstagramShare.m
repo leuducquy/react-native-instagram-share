@@ -1,4 +1,5 @@
 #import "RNInstagramShare.h"
+#import <AssetsLibrary/AssetsLibrary.h>
 #import <QuartzCore/QuartzCore.h>
 
 @interface RNInstagramShare ()
@@ -18,6 +19,11 @@ RCT_EXPORT_MODULE();
 RCT_EXPORT_METHOD(createPost:(NSDictionary *)options callback:(RCTResponseSenderBlock)callback)
 {
     callback(@[@([self instaGramWallPostWithURL:[options objectForKey:@"url"]])]);
+}
+
+- (NSString*)urlencodedString:(NSString*)instring
+{
+    return [instring stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]];
 }
 
 -(BOOL)instaGramWallPostWithURL: (NSString*) url
@@ -42,7 +48,50 @@ RCT_EXPORT_METHOD(createPost:(NSDictionary *)options callback:(RCTResponseSender
         self.documentController.annotation = [NSDictionary dictionaryWithObjectsAndKeys:[NSString stringWithFormat:@"Testing"], @"InstagramCaption", nil];
         self.documentController.UTI = @"com.instagram.exclusivegram";
         UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
-        [self.documentController presentOpenInMenuFromRect:CGRectMake(1, 1, 1, 1) inView:vc.view animated:YES];
+        // [self.documentController presentOpenInMenuFromRect:CGRectMake(1, 1, 1, 1) inView:vc.view animated:YES];
+
+        UIImage * im = imgShare;
+
+        // new way skip sharing controller go direct to instagram
+
+        // better just wait here
+
+        __block BOOL done = NO;
+
+        __block NSString * eurlInputImage = nil;
+
+        ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
+
+        [library writeImageToSavedPhotosAlbum:im.CGImage
+                                  orientation:(ALAssetOrientation)(im.imageOrientation)
+                              completionBlock:^(NSURL *assetURL, NSError *error) {
+
+                                  NSLog(@"inputImage assetURL %@", assetURL);
+
+                                  // pass out of block
+                                  NSString * eurlInputImage = [self urlencodedString:assetURL.absoluteString];
+
+
+                                  NSLog(@"inputImage assetURL encoded %@", eurlInputImage);
+
+
+                                  NSString * eurl = eurlInputImage;
+
+                                  NSString * caption = @""; // no longer supported picopt.instagramCaption;
+
+                                  NSString * ecaption = [self urlencodedString:caption];
+
+                                  NSString * iurl = [NSString stringWithFormat:@"instagram://library?AssetPath=%@&InstagramCaption=%@", eurl, ecaption];
+
+                                  printf("ready to launch instagram for inputImage, is main thread = %d\n", [NSThread isMainThread]);
+
+                                  [[UIApplication sharedApplication] openURL:[NSURL URLWithString:iurl]];
+
+                                  done = YES;
+
+                             }]; // writeImageToSaved
+
+
         return YES;
     } else {
         return NO;
