@@ -28,6 +28,9 @@ RCT_EXPORT_METHOD(createPost:(NSDictionary *)options callback:(RCTResponseSender
 
 -(BOOL)instaGramWallPostWithURL: (NSString*) url
 {
+    BOOL isVideo = NO;
+    if ([url hasSuffix:@".mp4"] || [url hasSuffix:@".MP4"]) isVideo = YES;
+  
     NSURL *myURL = [NSURL URLWithString:url];
     NSData * imageData = [[NSData alloc] initWithContentsOfURL:myURL];
     UIImage *imgShare = [[UIImage alloc] initWithData:imageData];
@@ -62,6 +65,7 @@ RCT_EXPORT_METHOD(createPost:(NSDictionary *)options callback:(RCTResponseSender
 
         ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
 
+        if (!isVideo)
         [library writeImageToSavedPhotosAlbum:im.CGImage
                                   orientation:(ALAssetOrientation)(im.imageOrientation)
                               completionBlock:^(NSURL *assetURL, NSError *error) {
@@ -90,6 +94,68 @@ RCT_EXPORT_METHOD(createPost:(NSDictionary *)options callback:(RCTResponseSender
                                   done = YES;
 
                              }]; // writeImageToSaved
+      
+      
+
+      if (isVideo) {
+      
+      BOOL writeOK = YES;
+        
+      if (![myURL isFileReferenceURL]) {
+        NSURL *writeurl = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"toInstagram.mp4"]];
+
+        NSData * mp4data = [NSData dataWithContentsOfURL:myURL];
+        
+        writeOK = [mp4data writeToURL:writeurl
+          atomically:YES];
+        
+        myURL = writeurl; // use local url instead
+        
+        
+      }
+       
+      if (!writeOK) { // error writing file maybe pop an error
+        printf("cannot save vid file from net for instagram share\n");
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+          
+          UIAlertView * av = [[UIAlertView alloc] initWithTitle:@"Unable to share" message:@"Unable to share video to Instagram." delegate:nil cancelButtonTitle:@"Proceed" otherButtonTitles:nil];
+          
+          [av show];
+          
+        });
+      }
+      else
+      [library writeVideoAtPathToSavedPhotosAlbum:myURL
+         completionBlock:^(NSURL *assetURL, NSError *error){
+           
+           printf("saving vid for inst error = %s\n", [[error localizedDescription] UTF8String]);
+           
+           NSLog(@"inputImage assetURL %@", assetURL);
+           
+           // pass out of block
+           NSString * eurlInputImage = [self urlencodedString:assetURL.absoluteString];
+           
+           
+           NSLog(@"inputImage assetURL encoded %@", eurlInputImage);
+           
+           
+           NSString * eurl = eurlInputImage;
+           
+           NSString * caption = @""; // no longer supported picopt.instagramCaption;
+           
+           NSString * ecaption = [self urlencodedString:caption];
+           
+           NSString * iurl = [NSString stringWithFormat:@"instagram://library?AssetPath=%@&InstagramCaption=%@", eurl, ecaption];
+           
+           printf("ready to launch instagram for inputImage, is main thread = %d\n", [NSThread isMainThread]);
+           
+           [[UIApplication sharedApplication] openURL:[NSURL URLWithString:iurl]];
+           
+           done = YES;
+           
+      }];
+    }
 
 
         return YES;
