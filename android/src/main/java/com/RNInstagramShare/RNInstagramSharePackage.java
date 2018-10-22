@@ -16,7 +16,7 @@ public class RNInstagramSharePackage implements ReactPackage {
       return Arrays.<NativeModule>asList(new RNInstagramShareModule(reactContext));
     }
 
-    @Override
+    
     public List<Class<? extends JavaScriptModule>> createJSModules() {
       return Collections.emptyList();
     }
